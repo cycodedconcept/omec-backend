@@ -1,0 +1,454 @@
+openapi: 3.0.3
+info:
+  title: Light Shade Hospital HMS API
+  version: 1.0.0
+  description: Backend MVP. All dates and appointment day boundaries use Africa/Lagos.
+servers:
+  - url: http://localhost:3000/api/v1
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Response:
+      type: object
+      required: [success, data, error]
+      properties:
+        success: { type: boolean }
+        data: { nullable: true, description: Endpoint-specific payload }
+        error: { type: string, nullable: true }
+    Login:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    User:
+      type: object
+      required: [email, password, firstName, lastName, roleId]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        firstName: { type: string }
+        lastName: { type: string }
+        roleId: { type: integer, minimum: 1 }
+        phone: { type: string, nullable: true }
+    Patient:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        dateOfBirth: { type: string, format: date, nullable: true }
+        gender: { type: string, enum: [Male, Female, Other], nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        address: { type: string, nullable: true }
+        emergencyContactName: { type: string, nullable: true }
+        emergencyContactPhone: { type: string, nullable: true }
+    Staff:
+      type: object
+      required: [userId, staffNumber]
+      properties:
+        userId: { type: integer, minimum: 1 }
+        staffNumber: { type: string, minLength: 2, maxLength: 30 }
+        departmentId: { type: integer, nullable: true }
+        specialization: { type: string, nullable: true }
+    Department:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        description: { type: string, nullable: true }
+        capacity: { type: integer, minimum: 0 }
+    Appointment:
+      type: object
+      required: [patientId, doctorId, departmentId, appointmentDate, appointmentTime]
+      properties:
+        patientId: { type: integer, minimum: 1 }
+        doctorId: { type: integer, minimum: 1, description: Doctor staff ID }
+        departmentId: { type: integer, minimum: 1 }
+        appointmentDate: { type: string, format: date }
+        appointmentTime: { type: string, example: '09:30' }
+        reason: { type: string, nullable: true }
+  parameters:
+    id:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+    staffId:
+      in: path
+      name: staffId
+      required: true
+      schema: { type: integer, minimum: 1 }
+    page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100 }
+    search:
+      in: query
+      name: search
+      schema: { type: string }
+  responses:
+    ok:
+      description: Standard successful response
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Response' }
+    badRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Response' }
+    unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Response' }
+    forbidden:
+      description: Role lacks permission
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Response' }
+    notFound:
+      description: Record not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Response' }
+    conflict:
+      description: Duplicate or conflicting record
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Response' }
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses: { '200': { $ref: '#/components/responses/ok' } }
+  /auth/login:
+    post:
+      summary: Exchange credentials for a 30-minute JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Login' }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '400': { $ref: '#/components/responses/badRequest' }, '401': { $ref: '#/components/responses/unauthorized' }, '429': { $ref: '#/components/responses/badRequest' } }
+  /auth/logout:
+    post:
+      summary: Revoke current JWT until expiry
+      responses: { '200': { $ref: '#/components/responses/ok' }, '401': { $ref: '#/components/responses/unauthorized' } }
+  /auth/reset-password:
+    post:
+      summary: Request reset link (development email stub)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '400': { $ref: '#/components/responses/badRequest' } }
+  /auth/users:
+    post:
+      summary: Create user (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/User' }
+      responses: { '201': { $ref: '#/components/responses/ok' }, '400': { $ref: '#/components/responses/badRequest' }, '403': { $ref: '#/components/responses/forbidden' }, '409': { $ref: '#/components/responses/conflict' } }
+  /patients:
+    get:
+      summary: List patients (all roles)
+      parameters:
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+        - { $ref: '#/components/parameters/search' }
+        - { in: query, name: status, schema: { type: string, enum: [Active, Admitted, Discharged] } }
+        - { in: query, name: registeredFrom, schema: { type: string, format: date } }
+        - { in: query, name: registeredTo, schema: { type: string, format: date } }
+      responses: { '200': { $ref: '#/components/responses/ok' } }
+    post:
+      summary: Register patient (Admin, Receptionist)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Patient' }
+      responses: { '201': { $ref: '#/components/responses/ok' }, '400': { $ref: '#/components/responses/badRequest' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /patients/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      summary: Patient profile and visits (all roles; numeric ID or LSH number)
+      responses: { '200': { $ref: '#/components/responses/ok' }, '404': { $ref: '#/components/responses/notFound' } }
+    put:
+      summary: Edit patient (Admin, Receptionist)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Patient' }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '400': { $ref: '#/components/responses/badRequest' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /patients/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      summary: Change patient status (Admin, Doctor, Nurse)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [Active, Admitted, Discharged] }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /patients/{id}/visits:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      summary: Add visit (Admin, Doctor, Nurse)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                visitDate: { type: string, format: date-time }
+                reason: { type: string }
+                diagnosis: { type: string, nullable: true }
+                notes: { type: string, nullable: true }
+      responses: { '201': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /staff:
+    get:
+      summary: List staff (all roles)
+      parameters:
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+        - { $ref: '#/components/parameters/search' }
+        - { in: query, name: role, schema: { type: string } }
+        - { in: query, name: departmentId, schema: { type: integer } }
+        - { in: query, name: status, schema: { type: string, enum: [Active, Inactive] } }
+      responses: { '200': { $ref: '#/components/responses/ok' } }
+    post:
+      summary: Create staff profile for existing user (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Staff' }
+      responses: { '201': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /staff/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      summary: Get staff by numeric ID or staff number (all roles)
+      responses: { '200': { $ref: '#/components/responses/ok' }, '404': { $ref: '#/components/responses/notFound' } }
+    put:
+      summary: Edit staff profile (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Staff' }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /staff/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      summary: Activate or deactivate staff and login (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [Active, Inactive] }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /departments:
+    get:
+      summary: List departments with staff count and Doctors (all roles)
+      parameters:
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+        - { $ref: '#/components/parameters/search' }
+        - { in: query, name: status, schema: { type: string, enum: [Active, Inactive] } }
+      responses: { '200': { $ref: '#/components/responses/ok' } }
+    post:
+      summary: Create department (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Department' }
+      responses: { '201': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /departments/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    put:
+      summary: Edit department (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Department' }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /departments/{id}/assign-staff:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      summary: Assign staff (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [staffId]
+              properties:
+                staffId: { type: integer, minimum: 1 }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' }, '409': { $ref: '#/components/responses/conflict' } }
+  /departments/{id}/staff/{staffId}:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+      - { $ref: '#/components/parameters/staffId' }
+    delete:
+      summary: Remove staff from department (Admin)
+      responses: { '200': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' } }
+  /departments/{id}/capacity:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      summary: Change capacity (Admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [capacity]
+              properties:
+                capacity: { type: integer, minimum: 0 }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' }, '409': { $ref: '#/components/responses/conflict' } }
+  /appointments:
+    get:
+      summary: List appointments (all roles)
+      parameters:
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+        - { $ref: '#/components/parameters/search' }
+        - { in: query, name: date, schema: { type: string, format: date } }
+        - { in: query, name: doctorId, schema: { type: integer } }
+        - { in: query, name: departmentId, schema: { type: integer } }
+        - { in: query, name: status, schema: { type: string, enum: [Pending, Confirmed, Completed, Cancelled, No-Show] } }
+      responses: { '200': { $ref: '#/components/responses/ok' } }
+    post:
+      summary: Book appointment (Admin, Receptionist)
+      description: Active Doctor slots have a database unique constraint; duplicate bookings return 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Appointment' }
+      responses: { '201': { $ref: '#/components/responses/ok' }, '403': { $ref: '#/components/responses/forbidden' }, '409': { $ref: '#/components/responses/conflict' } }
+  /appointments/today:
+    get:
+      summary: Today's appointments (all roles)
+      parameters:
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+        - { $ref: '#/components/parameters/search' }
+      responses: { '200': { $ref: '#/components/responses/ok' } }
+  /appointments/{id}/reschedule:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      summary: Reschedule appointment (Admin, Receptionist)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointmentDate, appointmentTime, reason]
+              properties:
+                appointmentDate: { type: string, format: date }
+                appointmentTime: { type: string, example: '10:00' }
+                reason: { type: string, minLength: 1 }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '400': { $ref: '#/components/responses/badRequest' }, '409': { $ref: '#/components/responses/conflict' } }
+  /appointments/{id}/cancel:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      summary: Cancel appointment (Admin, Doctor, Receptionist)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1 }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '400': { $ref: '#/components/responses/badRequest' } }
+  /appointments/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      summary: Update appointment status (Admin, Doctor, Nurse)
+      description: A reason is required when status is Cancelled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [Pending, Confirmed, Completed, Cancelled, No-Show] }
+                reason: { type: string }
+      responses: { '200': { $ref: '#/components/responses/ok' }, '400': { $ref: '#/components/responses/badRequest' } }
+  /notifications:
+    get:
+      summary: Current user's notification inbox and unread count (admins receive operational alerts)
+      description: Returns data.items, data.unreadCount and data.pagination. Unread count covers the entire current user's inbox regardless of filters. All four roles supported. Full notification examples are retained in tests/fixtures/notification-examples.json from the published Postman documentation.
+      parameters:
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+        - { $ref: '#/components/parameters/search' }
+        - { in: query, name: isRead, schema: { type: boolean }, description: Filter by read state }
+        - { in: query, name: type, schema: { type: string, maxLength: 50 }, description: Filter by event type }
+      responses: { '200': { $ref: '#/components/responses/ok' } }
+  /notifications/{id}/read:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      summary: Mark owned notification read (all roles)
+      description: Accepts no body or an empty object. Returns the full notification with isRead true and readAt set. Repeated reads preserve readAt. Emits notification:read to the owner's private Socket.IO room after commit. Missing and other users' notifications return 404.
+      responses: { '200': { $ref: '#/components/responses/ok' }, '404': { $ref: '#/components/responses/notFound' } }
+  /dashboard/stats:
+    get:
+      summary: Dashboard KPIs and prior-period changes (all roles)
+      responses: { '200': { $ref: '#/components/responses/ok' } }
+  /dashboard/chart:
+    get:
+      summary: Trailing 12-month patient inflow and placeholder series (all roles)
+      responses: { '200': { $ref: '#/components/responses/ok' } }
+  /dashboard/today-appointments:
+    get:
+      summary: Paginated today's dashboard appointments (all roles)
+      parameters:
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+        - { $ref: '#/components/parameters/search' }
+        - { in: query, name: status, schema: { type: string, enum: [Pending, Confirmed, Completed, Cancelled, No-Show] } }
+      responses: { '200': { $ref: '#/components/responses/ok' } }

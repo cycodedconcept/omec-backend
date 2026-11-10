@@ -1,0 +1,128 @@
+[
+  {
+    "name": "Admin Notification",
+    "method": "GET",
+    "responses": [
+      {
+        "code": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "items": [
+              {
+                "id": 5,
+                "userId": 1,
+                "type": "APPOINTMENT_STATUS_CHANGED",
+                "title": "Appointment status updated",
+                "message": "Appointment #10 changed from Pending to Confirmed",
+                "relatedType": "appointment",
+                "relatedId": 10,
+                "isRead": false,
+                "readAt": null,
+                "createdAt": "2026-08-28T14:07:55.000Z",
+                "updatedAt": "2026-08-28T14:07:55.000Z"
+              }
+            ],
+            "unreadCount": 1,
+            "pagination": {
+              "page": 1,
+              "limit": 20,
+              "total": 1,
+              "pages": 1
+            }
+          },
+          "error": null
+        }
+      }
+    ]
+  },
+  {
+    "name": "Single admin notification",
+    "method": "PATCH",
+    "responses": [
+      {
+        "code": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "id": 5,
+            "userId": 1,
+            "type": "APPOINTMENT_STATUS_CHANGED",
+            "title": "Appointment status updated",
+            "message": "Appointment #10 changed from Pending to Confirmed",
+            "relatedType": "appointment",
+            "relatedId": 10,
+            "isRead": true,
+            "readAt": "2026-10-20T12:57:12.043Z",
+            "createdAt": "2026-08-28T14:07:55.000Z",
+            "updatedAt": "2026-10-20T12:57:12.051Z"
+          },
+          "error": null
+        }
+      }
+    ]
+  },
+  {
+    "name": "Doctors notification",
+    "method": "GET",
+    "responses": [
+      {
+        "code": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "items": [
+              {
+                "id": 1,
+                "userId": 2,
+                "type": "APPOINTMENT_BOOKED",
+                "title": "New appointment booked",
+                "message": "A new appointment has been booked for 2026-09-30 at 13:00:00",
+                "relatedType": "appointment",
+                "relatedId": 7,
+                "isRead": false,
+                "readAt": null,
+                "createdAt": "2026-08-28T13:28:51.000Z",
+                "updatedAt": "2026-08-28T13:28:51.000Z"
+              }
+            ],
+            "unreadCount": 1,
+            "pagination": {
+              "page": 1,
+              "limit": 10,
+              "total": 1,
+              "pages": 1
+            }
+          },
+          "error": null
+        }
+      }
+    ]
+  },
+  {
+    "name": "Mark Notification read",
+    "method": "PATCH",
+    "responses": [
+      {
+        "code": 200,
+        "body": {
+          "success": true,
+          "data": {
+            "id": 2,
+            "userId": 8,
+            "type": "APPOINTMENT_BOOKED",
+            "title": "New appointment booked",
+            "message": "A new appointment has been booked for 2026-10-30 at 13:00:00",
+            "relatedType": "appointment",
+            "relatedId": 8,
+            "isRead": true,
+            "readAt": "2026-08-28T13:55:25.303Z",
+            "createdAt": "2026-08-28T13:37:03.000Z",
+            "updatedAt": "2026-08-28T13:55:25.305Z"
+          },
+          "error": null
+        }
+      }
+    ]
+  }
+]
